@@ -2,7 +2,7 @@ const TelegramBot = require('node-telegram-bot-api')
 const { Query } = require('pg')
 const { json } = require('stream/consumers')
 const { getChatId } = require('./helpers')
-const token = '5703563310:AAE0tmQJfBQ1zFJxlRy_u9fpo65Dne9dhrM'
+const token = '5712309589:AAFyq_C9l39rDgsgApuy80Cfb0dlshyFZO8'//5703563310:AAE0tmQJfBQ1zFJxlRy_u9fpo65Dne9dhrM'
 
 //const debug = require('./helpers')
 //const helpers = require('./helpers')
@@ -23,6 +23,12 @@ bot.on("polling_error", console.log);
 
 
 //Тут я кароче че-то делаю доброе утро
+
+let reply1 = new Map()
+let reply2 = new Map()
+let reply3 = new Map()
+let reply4 = new Map()
+let reply5 = new Map()
 
 const morning = {
     reply_markup: {
@@ -68,17 +74,16 @@ const timess = {
 //.........................
 
 //Создание отчетов
-cron.schedule('0 9 * * 1-5', () =>{  
+cron.schedule('28 14 * * 1-5', () =>{  
     personal.findAll({where:{active: "Y", chat_id: {[Op.not]: null}}, raw: true })
     .then(user=>{
     user.forEach(item =>
-        reports.create({
-            date: format(new Date(),'yyyy-MM-dd'),
-            chat_id: item.chat_id,
-            worked: "N"
-          }).then(res=>{
-            console.log(res);
-          }).catch(err=>console.log(err))
+        sequelize.query("INSERT INTO reports(date, chat_id, worked) SELECT $1, $2, 'N' WHERE NOT EXISTS (SELECT * FROM reports WHERE date = $1 AND chat_id = $2) AND EXISTS (SELECT * FROM personals WHERE chat_id = $2)", {
+            bind:[format(new Date(),'yyyy-MM-dd'),item.chat_id],
+            model: reports,   
+            mapToModel: true,
+            type: Op.SELECT,
+        })
     )
     }).catch(err=>console.log(err));
 })
@@ -101,52 +106,124 @@ cron.schedule('0 19 * * 1-5', () =>{
 
 //Реакция на клавы
 bot.on('callback_query', (query) =>{
-    if (query.data === 'Ввести план на день'){       
-        bot.sendMessage(query.message.chat.id, 'Жду',)           
-        bot.once('message', (msg)=>{            
-            sequelize.query("UPDATE reports SET tasks = $2 WHERE chat_id= $1 AND date = $3", {
-                bind:[msg.chat.id,msg.text,format(new Date(),'yyyy-MM-dd')],
-                model: reports,   
-                mapToModel: true,
-                type: Op.SELECT,
-            });
-            bot.sendMessage(query.message.chat.id, 'ok',);
-        })
+    if (query.data === 'Ввести план на день'){     
+        bot.sendMessage(query.message.chat.id, 'жду', {
+            reply_markup: JSON.stringify({ force_reply: true }),
+        }).then(msg => {
+            bot.removeReplyListener(reply1.get(query.message.chat.id));
+            reply1.set(query.message.chat.id, 
+                bot.onReplyToMessage(msg.chat.id, msg.message_id, reply => {
+                    sequelize.query("UPDATE reports SET tasks = $2 WHERE chat_id= $1 AND date = $3", {
+                        bind:[reply.chat.id,reply.text,format(new Date(),'yyyy-MM-dd')],
+                        model: reports,   
+                        mapToModel: true,
+                        type: Op.SELECT,
+                    });
+                    bot.sendMessage(query.message.chat.id, 'ok',);
+                    bot.removeReplyListener(reply1.get(query.message.chat.id));
+                    reply1.delete(query.message.chat.id);
+                })
+            )
+        }) 
+        // bot.sendMessage(query.message.chat.id, 'Жду',)          
+        // bot.once('message', (msg)=>{            
+        //     sequelize.query("UPDATE reports SET tasks = $2 WHERE chat_id= $1 AND date = $3", {
+        //         bind:[msg.chat.id,msg.text,format(new Date(),'yyyy-MM-dd')],
+        //         model: reports,   
+        //         mapToModel: true,
+        //         type: Op.SELECT,
+        //     });
+        //     bot.sendMessage(query.message.chat.id, 'ok',);
+        // })
     } 
     else if (query.data === 'Сегодня не работаю'){
-        bot.sendMessage(query.message.chat.id, 'Введите причину',) 
-        bot.once('message', (msg) =>{
-            sequelize.query("UPDATE reports SET fact = $2 WHERE chat_id= $1 AND date = $3", {
-                bind:[msg.chat.id,msg.text,format(new Date(),'yyyy-MM-dd')],
-                model: reports,
-                mapToModel: true,
-                type: Op.SELECT,
-            });
-            bot.sendMessage(query.message.chat.id, 'ok',);
+        bot.sendMessage(query.message.chat.id, 'Введите причину', {
+            reply_markup: JSON.stringify({ force_reply: true }),
+        }).then(msg => {
+            bot.removeReplyListener(reply2.get(query.message.chat.id));
+            reply2.set(query.message.chat.id, 
+                bot.onReplyToMessage(msg.chat.id, msg.message_id, reply => {
+                    sequelize.query("UPDATE reports SET fact = $2 WHERE chat_id= $1 AND date = $3", {
+                        bind:[reply.chat.id,reply.text,format(new Date(),'yyyy-MM-dd')],
+                        model: reports,
+                        mapToModel: true,
+                        type: Op.SELECT,
+                    });
+                    bot.sendMessage(query.message.chat.id, 'ok',);
+                    bot.removeReplyListener(reply2.get(query.message.chat.id));
+                    reply2.delete(query.message.chat.id);
+                })
+            )     
         })
+        // bot.sendMessage(query.message.chat.id, 'Введите причину',) 
+        // bot.once('message', (msg) =>{
+        //     sequelize.query("UPDATE reports SET fact = $2 WHERE chat_id= $1 AND date = $3", {
+        //         bind:[msg.chat.id,msg.text,format(new Date(),'yyyy-MM-dd')],
+        //         model: reports,
+        //         mapToModel: true,
+        //         type: Op.SELECT,
+        //     });
+        //     bot.sendMessage(query.message.chat.id, 'ok',);
+        // })
     }
-    else if (query.data === 'Ввести факт'){       
-        bot.sendMessage(query.message.chat.id, 'Жду',)           
-        bot.once('message', (msg)=>{                      
-            this.facts = msg.text; 
-            bot.sendMessage(query.message.chat.id, 'У тебы был полный рабочий день?', timess);
-        })                              
+    else if (query.data === 'Ввести факт'){  
+        bot.sendMessage(query.message.chat.id, 'Жду', {
+            reply_markup: JSON.stringify({ force_reply: true }),
+        }).then(msg => { 
+            bot.removeReplyListener(reply3.get(query.message.chat.id)); 
+            reply3.set(query.message.chat.id,
+                bot.onReplyToMessage(msg.chat.id, msg.message_id, reply => {
+                    sequelize.query("UPDATE reports SET fact = $2, worked = 'Y' WHERE chat_id= $1 AND date = $3", {
+                        bind:[reply.chat.id,reply.text,format(new Date(),'yyyy-MM-dd')],
+                        model: reports,
+                        mapToModel: true,
+                        type: Op.SELECT,
+                    });
+                    bot.sendMessage(query.message.chat.id, 'У тебы был полный рабочий день?', timess);
+                    bot.removeReplyListener(reply3.get(query.message.chat.id));
+                    reply3.delete(query.message.chat.id);
+                })
+            )
+        })
+        // bot.sendMessage(query.message.chat.id, 'Жду',)           
+        // bot.once('message', (msg)=>{                      
+        //     this.facts = msg.text; 
+        //     bot.sendMessage(query.message.chat.id, 'У тебы был полный рабочий день?', timess);
+        // })                              
     }
     else if (query.data === 'Сегодня не работал'){
-        bot.sendMessage(query.message.chat.id, 'Введите причину',) 
-        bot.once('message', (msg) =>{
-            sequelize.query("UPDATE reports SET fact = $2 WHERE chat_id= $1 AND date = $3", {
-                bind:[msg.chat.id,msg.text,format(new Date(),'yyyy-MM-dd')],
-                model: reports,
-                mapToModel: true,
-                type: Op.SELECT,
-            });
-            bot.sendMessage(query.message.chat.id, 'ok',);
-        })
+        bot.sendMessage(query.message.chat.id, 'Введите причину', {
+            reply_markup: JSON.stringify({ force_reply: true }),
+        }).then(msg => { 
+            bot.removeReplyListener(reply4.get(query.message.chat.id));
+            reply4.set(query.message.chat.id,     
+                bot.onReplyToMessage(msg.chat.id, msg.message_id, reply => {
+                    sequelize.query("UPDATE reports SET fact = $2 WHERE chat_id= $1 AND date = $3", {
+                        bind:[reply.chat.id,reply.text,format(new Date(),'yyyy-MM-dd')],
+                        model: reports,
+                        mapToModel: true,
+                        type: Op.SELECT,
+                    });
+                    bot.sendMessage(query.message.chat.id, 'ok',);
+                    bot.removeReplyListener(reply4.get(query.message.chat.id));
+                    reply4.delete(query.message.chat.id);
+                })
+            )
+        }) 
+        // bot.sendMessage(query.message.chat.id, 'Введите причину',) 
+        // bot.once('message', (msg) =>{
+        //     sequelize.query("UPDATE reports SET fact = $2 WHERE chat_id= $1 AND date = $3", {
+        //         bind:[msg.chat.id,msg.text,format(new Date(),'yyyy-MM-dd')],
+        //         model: reports,
+        //         mapToModel: true,
+        //         type: Op.SELECT,
+        //     });
+        //     bot.sendMessage(query.message.chat.id, 'ok',);
+        // })
     }
     else if(query.data === 'Полный рабочий день'){  
-        sequelize.query("UPDATE reports SET fact = $2, worked = 'Y', hours = '8' WHERE chat_id = $1 AND date = $3", {
-            bind:[query.message.chat.id,this.facts,format(new Date(),'yyyy-MM-dd')],
+        sequelize.query("UPDATE reports SET hours = '8' WHERE chat_id = $1 AND date = $2", {
+            bind:[query.message.chat.id,format(new Date(),'yyyy-MM-dd')],
             model: reports,
             mapToModel: true,
             type: Op.SELECT,
@@ -154,47 +231,90 @@ bot.on('callback_query', (query) =>{
         bot.sendMessage(query.message.chat.id, 'ok',);        
     }
     else if (query.data === 'Ввести часы работы'){
-        bot.sendMessage(query.message.chat.id, 'Сколько часов отработал?',);
-        (function tratata(facts) {(bot.once('message', (msg)=>{ 
-            if (msg.text > 0 && msg.text <9) { 
-                sequelize.query("UPDATE reports SET fact = $2, worked = 'Y', hours = $4 WHERE chat_id = $1 AND date = $3", {
-                    bind:[query.message.chat.id,facts,format(new Date(),'yyyy-MM-dd'),msg.text],
-                    model: reports,
-                    mapToModel: true,
-                    type: Op.SELECT,
-                });
-                bot.sendMessage(query.message.chat.id, 'ok',);
-            }
-            else {
-                bot.sendMessage(query.message.chat.id, 'Что ты несешь?',);
-                tratata(facts);
-                return;
-            }
-        }))}(this.facts))
+        bot.sendMessage(query.message.chat.id, 'Сколько часов отработал?', {
+            reply_markup: JSON.stringify({ force_reply: true }),
+        }).then(msg => {
+            bot.removeReplyListener(reply5.get(query.message.chat.id));
+            reply5.set(query.message.chat.id,
+                bot.onReplyToMessage(msg.chat.id, msg.message_id, reply => {
+                    if (reply.text > 0 && reply.text <9) { 
+                        sequelize.query("UPDATE reports SET hours = $3 WHERE chat_id = $1 AND date = $2", {
+                            bind:[reply.chat.id,format(new Date(),'yyyy-MM-dd'),reply.text],
+                            model: reports,
+                            mapToModel: true,
+                            type: Op.SELECT,
+                        });
+                        bot.sendMessage(query.message.chat.id, 'ok',);
+                        bot.removeReplyListener(reply5.get(query.message.chat.id));
+                        reply5.delete(query.message.chat.id);
+                    }
+                    else {
+                        bot.sendMessage(query.message.chat.id, 'Что ты несешь?',);
+                    }
+                })
+            )
+        })    
+        // bot.sendMessage(query.message.chat.id, 'Сколько часов отработал?',);
+        // (function tratata(facts) {(bot.once('message', (msg)=>{ 
+        //     if (msg.text > 0 && msg.text <9) { 
+        //         sequelize.query("UPDATE reports SET fact = $2, worked = 'Y', hours = $4 WHERE chat_id = $1 AND date = $3", {
+        //             bind:[query.message.chat.id,facts,format(new Date(),'yyyy-MM-dd'),msg.text],
+        //             model: reports,
+        //             mapToModel: true,
+        //             type: Op.SELECT,
+        //         });
+        //         bot.sendMessage(query.message.chat.id, 'ok',);
+        //     }
+        //     else {
+        //         bot.sendMessage(query.message.chat.id, 'Что ты несешь?',);
+        //         tratata(facts);
+        //         return;
+        //     }
+        // }))}(this.facts))
     }
     bot.editMessageReplyMarkup({reply_markup: JSON.stringify({keyboard: []})}, {chat_id: query.message.chat.id, message_id: query.message.message_id})
 })
 
-bot.onText(/\/plan/, msg => {
-    reports.findOne({where:{chat_id: msg.chat.id, date: format(new Date(),'yyyy-MM-dd')}, raw: true })
-    .then(user=>{
-        if (user.tasks == null && user.fact == null){
-            bot.sendMessage(user.chat_id, 'Доброе утро! Что на сегодня запланировано?', morning);
-        } else {
-            bot.sendMessage(user.chat_id, 'Не понял');
-        }
-    }).catch(err=>console.log(err));
+bot.onText(/\/workstart/, async msg => {
+    if(new Date().getDay() != (6 || 0)){
+        await sequelize.query("INSERT INTO reports(date, chat_id, worked) SELECT $1, $2, 'N' WHERE NOT EXISTS (SELECT * FROM reports WHERE date = $1 AND chat_id = $2) AND EXISTS (SELECT * FROM personals WHERE chat_id = $2 AND active = 'Y')", {
+            bind:[format(new Date(),'yyyy-MM-dd'),msg.chat.id],
+            model: reports,   
+            mapToModel: true,
+            type: Op.SELECT,
+        });
+        await reports.findOne({where:{chat_id: msg.chat.id, date: format(new Date(),'yyyy-MM-dd')}, raw: true })
+        .then(user=>{
+            if (user && user.tasks == null && user.fact == null){
+                bot.sendMessage(user.chat_id, 'Доброе утро! Что на сегодня запланировано?', morning);
+            } else {
+                bot.sendMessage(msg.chat.id, 'Не понял');
+            }
+        }).catch(err=>console.log(err));
+    } else {
+        bot.sendMessage(msg.chat.id, 'Кто работа?');
+    }
 }) 
 
-bot.onText(/\/fact/, msg => {
-    reports.findOne({where:{chat_id: msg.chat.id, date: format(new Date(),'yyyy-MM-dd')}, raw: true })
-    .then(user=>{
-        if (user.fact == null){
-            bot.sendMessage(user.chat_id, 'Готов отчитаться за день?', evening);
-        } else {
-            bot.sendMessage(user.chat_id, 'Не понял');
-        }
-    }).catch(err=>console.log(err));
+bot.onText(/\/workend/, async msg => {
+    if(new Date().getDay() != (6 || 0)){
+        await sequelize.query("INSERT INTO reports(date, chat_id, worked) SELECT $1, $2, 'N' WHERE NOT EXISTS (SELECT * FROM reports WHERE date = $1 AND chat_id = $2) AND EXISTS (SELECT * FROM personals WHERE chat_id = $2 AND active = 'Y')", {
+            bind:[format(new Date(),'yyyy-MM-dd'),msg.chat.id],
+            model: reports,   
+            mapToModel: true,
+            type: Op.SELECT,
+        });
+        await reports.findOne({where:{chat_id: msg.chat.id, date: format(new Date(),'yyyy-MM-dd')}, raw: true })
+        .then(user=>{
+            if (user && user.fact == null){
+                bot.sendMessage(user.chat_id, 'Готов отчитаться за день?', evening);
+            } else {
+                bot.sendMessage(msg.chat.id, 'Не понял');
+            }
+        }).catch(err=> console.log(err));
+    } else {
+        bot.sendMessage(msg.chat.id, 'Кто работа?');
+    }
 }) 
 
 
@@ -327,15 +447,5 @@ bot.onText(/\/start/, msg => {
     })   
   
     
-    
-
-
-
-
-
-
-
-
-
    
   

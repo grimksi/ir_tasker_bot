@@ -39,7 +39,7 @@ const personal = sequelize.define('personal',
         
     },
     chat_id:{
-        type: DataTypes.INTEGER,
+        type: DataTypes.BIGINT,
         
     },
 }
@@ -67,7 +67,7 @@ const reports = sequelize.define('reports',
         type: DataTypes.DATEONLY
     },
     chat_id:{
-        type: DataTypes.INTEGER
+        type: DataTypes.BIGINT
     },
     worked:{
         type: DataTypes.CHAR()
